@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<?eclipse version="3.4"?>
+<plugin>
+   <extension
+         point="org.eclipse.debug.core.launchConfigurationTypes">
+      <launchConfigurationType
+            delegate="org.eclipse.gemoc.execution.truffle.graalvm.ui.launcher.TruffleGraalVMLaunchConfigurationDelegate"
+            id="org.eclipse.gemoc.execution.truffle.graalvm.ui.launcher"
+            modes="run, debug"
+            name="Executable model with GEMOC Truffle GraalVM"
+            public="true"
+            sourceLocatorId="org.eclipse.gemoc.execution.truffle.graalvm.ui.sourceLocator">
+      </launchConfigurationType>
+   </extension>
+   
+	<extension
+		point="org.eclipse.debug.ui.launchConfigurationTabGroups">
+		<launchConfigurationTabGroup
+			class="org.eclipse.gemoc.execution.truffle.graalvm.ui.launcher.TruffleGraalVMLaunchConfigurationTabGroup"
+			id="org.eclipse.gemoc.execution.truffle.graalvm.ui.launcher.TruffleGraalVMLaunchConfigurationTabGroup"
+			type="org.eclipse.gemoc.execution.truffle.graalvm.ui.launcher">
+		</launchConfigurationTabGroup>
+	</extension>
+    <extension
+          point="org.eclipse.debug.ui.debugModelPresentations">
+       <debugModelPresentation
+             class="org.eclipse.gemoc.execution.truffle.graalvm.ui.launcher.TruffleGraalVMDebugModelPresentation"
+             id="org.eclipse.gemoc.execution.truffle.graalvm.ui.debugModel">
+       </debugModelPresentation>
+    </extension>
+   <extension
+         point="org.eclipse.debug.core.sourceLocators">
+      <sourceLocator
+            class="org.eclipse.gemoc.execution.truffle.graalvm.ui.launcher.TruffleGraalVMSourceLocator"
+            id="org.eclipse.gemoc.execution.truffle.graalvm.ui.sourceLocator"
+            name="GEMOC Truffle GraalVM Source Locator">
+      </sourceLocator>
+   </extension>
+</plugin>
