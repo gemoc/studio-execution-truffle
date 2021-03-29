@@ -25,6 +25,7 @@ class TruffleGraalVMLaunchConstants {
 	package static val MAIN_JAR_FILE_LOCATION = 'Main jar file location'
 	package static val MAIN_CLASS_NAME = 'Main class name'
 	package static val PROGRAM_ARGUMENTS = 'Program arguments'
+	package static val ADDITIONAL_VM_ARGUMENTS = 'Additional VM arguments'
 
 	package static def getProject(ILaunchConfiguration configuration) {
 		val projectName = configuration.getAttribute(TruffleGraalVMLaunchConstants::PROJECT, '')

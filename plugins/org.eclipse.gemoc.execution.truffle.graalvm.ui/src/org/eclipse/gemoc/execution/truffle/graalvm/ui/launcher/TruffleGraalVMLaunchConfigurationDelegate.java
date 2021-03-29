@@ -24,6 +24,7 @@ import org.eclipse.gemoc.dsl.debug.ide.sirius.ui.launch.AbstractDSLLaunchConfigu
 import org.eclipse.gemoc.execution.truffle.graalvm.ui.Activator;
 import org.eclipse.jdt.internal.launching.LaunchingMessages;
 import org.eclipse.jdt.internal.launching.LaunchingPlugin;
+import org.eclipse.jdt.internal.launching.StandardVMRunner;
 import org.eclipse.jdt.launching.ExecutionArguments;
 import org.eclipse.jdt.launching.IJavaLaunchConfigurationConstants;
 import org.eclipse.jdt.launching.IRuntimeClasspathEntry;
@@ -35,6 +36,12 @@ import org.eclipse.jface.viewers.ISelection;
 import org.eclipse.osgi.util.NLS;
 import org.eclipse.ui.IEditorPart;
 
+
+/**
+ * Mix of org.eclipse.jdt.launching.AbstractJavaLaunchConfigurationDelegate and 
+ * org.eclipse.gemoc.dsl.debug.ide.sirius.ui.launch.AbstractDSLLaunchConfigurationDelegateSiriusUI
+ * in order to start graal VM with DAP and basic GEMOC Modeling support
+ */
 public class TruffleGraalVMLaunchConfigurationDelegate extends AbstractDSLLaunchConfigurationDelegateSiriusUI {
 
 	
@@ -61,8 +68,8 @@ public class TruffleGraalVMLaunchConfigurationDelegate extends AbstractDSLLaunch
 		String[] envp = getEnvironment(configuration);
 
 		// Program & VM arguments
-		String pgmArgs = configuration.getAttribute(TruffleGraalVMLaunchConstants.PROGRAM_ARGUMENTS,""); // TODO getProgramArguments(configuration);
-		String vmArgs = ""; // TODO concat(getVMArguments(configuration), getVMArguments(configuration, mode));
+		String pgmArgs = getProgramArguments(configuration);
+		String vmArgs = getVMArguments(configuration);
 		ExecutionArguments execArgs = new ExecutionArguments(vmArgs, pgmArgs);
 
 		// VM-specific attributes
@@ -129,10 +136,10 @@ public class TruffleGraalVMLaunchConfigurationDelegate extends AbstractDSLLaunch
 	
 	public IVMRunner getVMRunner(ILaunchConfiguration configuration, String mode) throws CoreException {
 		IVMInstall vm = verifyVMInstall(configuration);
-		IVMRunner runner = vm.getVMRunner(mode); // TODO  actually we run in "run" mode with options for graalVM to expose DAP interface
-		if (runner == null) {
-			abort(NLS.bind(LaunchingMessages.JavaLocalApplicationLaunchConfigurationDelegate_0, new String[]{vm.getName(), mode}), null, IJavaLaunchConfigurationConstants.ERR_VM_RUNNER_DOES_NOT_EXIST);
-		}
+		IVMRunner runner = new GraalVMRunner(vm, mode);//vm.getVMRunner(mode); // TODO  actually we run in "run" mode with options for graalVM to expose DAP interface
+//		if (runner == null) {
+//			abort(NLS.bind(LaunchingMessages.JavaLocalApplicationLaunchConfigurationDelegate_0, new String[]{vm.getName(), mode}), null, IJavaLaunchConfigurationConstants.ERR_VM_RUNNER_DOES_NOT_EXIST);
+//		}
 		return runner;
 	}
 	/**
@@ -188,6 +195,43 @@ public class TruffleGraalVMLaunchConfigurationDelegate extends AbstractDSLLaunch
 			throws CoreException {
 		// TODO use only graal VM installations 
 		return JavaRuntime.computeVMInstall(configuration);
+	}
+	
+	/**
+	 * Returns the program arguments specified by the given launch
+	 * configuration, as a string. The returned string is empty if no program
+	 * arguments are specified.
+	 *
+	 * @param configuration
+	 *            launch configuration
+	 * @return the program arguments specified by the given launch
+	 *         configuration, possibly an empty string
+	 * @exception CoreException
+	 *                if unable to retrieve the attribute
+	 */
+	public String getProgramArguments(ILaunchConfiguration configuration) throws CoreException {
+		return configuration.getAttribute(TruffleGraalVMLaunchConstants.PROGRAM_ARGUMENTS,"");
+	}
+	
+	/**
+	 * Computes the VM arguments as a String
+	 * use the additional VM argument specified by the given launch configuration, 
+	 * and the dedicated Graal options
+	 *
+	 * @param configuration
+	 *            launch configuration
+	 * @return the VM arguments specified by the given launch configuration,
+	 *         possibly an empty string
+	 * @exception CoreException
+	 *                if unable to retrieve the attribute
+	 */
+	public String getVMArguments(ILaunchConfiguration configuration) throws CoreException {
+		StringBuilder args = new StringBuilder(configuration.getAttribute(TruffleGraalVMLaunchConstants.ADDITIONAL_VM_ARGUMENTS,""));
+		
+		// graal vm option
+		// cf. https://www.graalvm.org/tools/dap/
+		//args.append(" --dap");
+		return args.toString();
 	}
 	
 	/**
@@ -252,7 +296,6 @@ public class TruffleGraalVMLaunchConfigurationDelegate extends AbstractDSLLaunch
 			monitor.worked(1);
 			// Launch the configuration - 1 unit of work
 			IVMRunner runner = getVMRunner(configuration, mode);
-			System.out.println(runner.showCommandLine(runConfig, launch, monitor));
 			runner.run(runConfig, launch, monitor);
 
 			// check for cancellation
