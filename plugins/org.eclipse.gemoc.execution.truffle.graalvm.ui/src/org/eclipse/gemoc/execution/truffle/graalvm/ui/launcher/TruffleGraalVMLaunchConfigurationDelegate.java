@@ -22,6 +22,7 @@ import org.eclipse.gemoc.dsl.debug.ide.IDSLDebugger;
 import org.eclipse.gemoc.dsl.debug.ide.event.DSLDebugEventDispatcher;
 import org.eclipse.gemoc.dsl.debug.ide.sirius.ui.launch.AbstractDSLLaunchConfigurationDelegateSiriusUI;
 import org.eclipse.gemoc.execution.truffle.graalvm.ui.Activator;
+import org.eclipse.gemoc.execution.truffle.graalvm.ui.debug.DapDSLDebugger;
 import org.eclipse.jdt.internal.launching.LaunchingMessages;
 import org.eclipse.jdt.internal.launching.LaunchingPlugin;
 import org.eclipse.jdt.internal.launching.StandardVMRunner;
@@ -31,6 +32,7 @@ import org.eclipse.jdt.launching.IRuntimeClasspathEntry;
 import org.eclipse.jdt.launching.IVMInstall;
 import org.eclipse.jdt.launching.IVMRunner;
 import org.eclipse.jdt.launching.JavaRuntime;
+import org.eclipse.jdt.launching.SocketUtil;
 import org.eclipse.jdt.launching.VMRunnerConfiguration;
 import org.eclipse.jface.viewers.ISelection;
 import org.eclipse.osgi.util.NLS;
@@ -47,7 +49,7 @@ public class TruffleGraalVMLaunchConfigurationDelegate extends AbstractDSLLaunch
 	
 	public final static String TYPE_ID = Activator.PLUGIN_ID + ".launcher";
 
-	private VMRunnerConfiguration getVMRunnerConfiguration(ILaunchConfiguration configuration, String mode, IProgressMonitor monitor) throws CoreException {
+	private TruffleGraalVMRunnerConfiguration getVMRunnerConfiguration(ILaunchConfiguration configuration, String mode, IProgressMonitor monitor) throws CoreException {
 
 		monitor.beginTask(NLS.bind("{0}...", new String[]{configuration.getName()}), 3); //$NON-NLS-1$
 		// check for cancellation
@@ -72,18 +74,28 @@ public class TruffleGraalVMLaunchConfigurationDelegate extends AbstractDSLLaunch
 		String vmArgs = getVMArguments(configuration);
 		ExecutionArguments execArgs = new ExecutionArguments(vmArgs, pgmArgs);
 
+		monitor.subTask(LaunchingMessages.StandardVMDebugger_Finding_free_socket____2);
+
+		int dapPort= SocketUtil.findFreePort();
+		if (dapPort == -1) {
+			abort(LaunchingMessages.StandardVMDebugger_Could_not_find_a_free_socket_for_the_debugger_1, null, IJavaLaunchConfigurationConstants.ERR_NO_SOCKET_AVAILABLE);
+		}
+
+		monitor.worked(1);
+		
 		// VM-specific attributes
 		Map<String, Object> vmAttributesMap = new HashMap<>(); //getVMSpecificAttributesMap(configuration);
 
 		// Create VM config
 		// Bug 529435 :to move to getClasspathAndModulepath after java 8 is sunset
-		VMRunnerConfiguration runConfig = new VMRunnerConfiguration(mainTypeName, getClasspath(configuration));
+		TruffleGraalVMRunnerConfiguration runConfig = new TruffleGraalVMRunnerConfiguration(mainTypeName, getClasspath(configuration));
 		runConfig.setProgramArguments(execArgs.getProgramArgumentsArray());
 		runConfig.setEnvironment(envp);
 		runConfig.setVMArguments(execArgs.getVMArgumentsArray());
 		runConfig.setWorkingDirectory(workingDirName);
 		runConfig.setVMSpecificAttributesMap(vmAttributesMap);
 		runConfig.setPreviewEnabled(false);
+		runConfig.setDapPort(dapPort);
 		// Module name not required for Scrapbook page
 		/*if (supportsModule() && !mainTypeName.equals("org.eclipse.jdt.internal.debug.ui.snippeteditor.ScrapbookMain")) { //$NON-NLS-1$
 			// Module name need not be the same as project name
@@ -297,7 +309,10 @@ public class TruffleGraalVMLaunchConfigurationDelegate extends AbstractDSLLaunch
 			// Launch the configuration - 1 unit of work
 			IVMRunner runner = getVMRunner(configuration, mode);
 			runner.run(runConfig, launch, monitor);
-
+			
+			// connect EMF representation and debugTarget (ie. via DAP Client)
+			super.launch(configuration, mode, launch, monitor);
+			
 			// check for cancellation
 			if (monitor.isCanceled()) {
 				return;
@@ -324,11 +339,17 @@ public class TruffleGraalVMLaunchConfigurationDelegate extends AbstractDSLLaunch
 		return EcorePackage.eINSTANCE;
 	}
 
+	
+	@Override
+	protected EObject getFirstInstruction(ILaunchConfiguration configuration) {
+		// TODO replace by a real method to retreive the first instruction of the model in xtext
+		return EcorePackage.eINSTANCE; //super.getFirstInstruction(configuration);
+	}
+
 	@Override
 	protected IDSLDebugger getDebugger(ILaunchConfiguration configuration, DSLDebugEventDispatcher dispatcher,
 			EObject firstInstruction, IProgressMonitor monitor) {
-		// TODO Auto-generated method stub
-		return null;
+		return new DapDSLDebugger();
 	}
 
 	@Override

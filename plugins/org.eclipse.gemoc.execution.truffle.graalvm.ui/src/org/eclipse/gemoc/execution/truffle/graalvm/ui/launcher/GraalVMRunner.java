@@ -415,7 +415,7 @@ public class GraalVMRunner extends AbstractVMRunner {
 	public String showCommandLine(VMRunnerConfiguration configuration, ILaunch launch, IProgressMonitor monitor) throws CoreException {
 		IProgressMonitor subMonitor = SubMonitor.convert(monitor, 1);
 
-		CommandDetails cmd = getCommandLine(configuration, launch, subMonitor);
+		CommandDetails cmd = getCommandLine((TruffleGraalVMRunnerConfiguration) configuration, launch, subMonitor);
 		if (subMonitor.isCanceled() || cmd == null) {
 			return ""; //$NON-NLS-1$
 		}
@@ -424,18 +424,9 @@ public class GraalVMRunner extends AbstractVMRunner {
 		return getCmdLineAsString(cmdLine);
 	}
 
-	private CommandDetails getCommandLine(VMRunnerConfiguration config, ILaunch launch, IProgressMonitor monitor) throws CoreException {
+	private CommandDetails getCommandLine(TruffleGraalVMRunnerConfiguration config, ILaunch launch, IProgressMonitor monitor) throws CoreException {
 		IProgressMonitor subMonitor = SubMonitor.convert(monitor, 1);
 		subMonitor.subTask(LaunchingMessages.StandardVMRunner_Constructing_command_line____2);
-		
-		subMonitor.subTask(LaunchingMessages.StandardVMDebugger_Finding_free_socket____2);
-
-		int port= SocketUtil.findFreePort();
-		if (port == -1) {
-			abort(LaunchingMessages.StandardVMDebugger_Could_not_find_a_free_socket_for_the_debugger_1, null, IJavaLaunchConfigurationConstants.ERR_NO_SOCKET_AVAILABLE);
-		}
-
-		subMonitor.worked(1);
 		
 		
 		String program = constructProgramString(config);
@@ -491,7 +482,7 @@ public class GraalVMRunner extends AbstractVMRunner {
 		addArguments(programArgs, arguments);
 
 		// enable GraalVM dap and specify port
-		arguments.add("--dap="+port);
+		arguments.add("--dap="+config.getDapPort());
 		if (ILaunchManager.RUN_MODE.equals(mode)) {
 			arguments.add("--dap.Suspend=false");
 		} else if (ILaunchManager.DEBUG_MODE.equals(mode)) {
@@ -523,7 +514,7 @@ public class GraalVMRunner extends AbstractVMRunner {
 		cmd.setWorkingDir(workingDir);
 		cmd.setClasspathShortener(classpathShortener);
 		cmd.setCommandLineShortener(commandLineShortener);
-		cmd.setDAPPort(port);
+		cmd.setDAPPort(config.getDapPort());
 		subMonitor.worked(1);
 		return cmd;
 	}
@@ -532,7 +523,7 @@ public class GraalVMRunner extends AbstractVMRunner {
 	public void run(VMRunnerConfiguration config, ILaunch launch, IProgressMonitor monitor) throws CoreException {
 		IProgressMonitor subMonitor = SubMonitor.convert(monitor, 1);
 
-		CommandDetails cmdDetails = getCommandLine(config, launch, subMonitor);
+		CommandDetails cmdDetails = getCommandLine((TruffleGraalVMRunnerConfiguration) config, launch, subMonitor);
 		// check for cancellation
 		if (subMonitor.isCanceled() || cmdDetails == null) {
 			return;
